@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secure Vault | Decrypt Sharing</title>
+    <!-- Modern Typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- CSS Stylesheet -->
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body class="decrypt-page">
+    <!-- Cyberpunk grid overlay for high-end aesthetics -->
+    <div class="cyber-grid"></div>
+    <div class="glow-sphere orange"></div>
+    <div class="glow-sphere indigo"></div>
+
+    <div class="decrypt-container">
+        <!-- Logo and Heading -->
+        <header class="auth-header">
+            <div class="logo">
+                <span class="logo-icon">🔒</span>
+                <span class="logo-text">SECURE<span>VAULT</span></span>
+            </div>
+            <h1>Secure Package Transfer</h1>
+            <p>Verification challenge required to decrypt and download the shared dataset.</p>
+        </header>
+
+        <!-- Glassmorphic Challenge Panel -->
+        <main class="glass-card decrypt-card">
+            {% if error %}
+            <!-- Error State -->
+            <div class="error-container">
+                <span class="error-icon">⚠️</span>
+                <h2>Link Unresolved</h2>
+                <p>{{ error }}</p>
+                <a href="/" class="btn btn-secondary mt-20">Back to Vault Home</a>
+            </div>
+            {% else %}
+            <!-- Metadata Headers -->
+            <div class="file-meta-header">
+                <span class="file-badge">🔑 AES-GCM Encrypted</span>
+                <h2 id="share-filename">{{ file.filename }}</h2>
+                <div class="meta-row">
+                    <span>Sender: <strong id="share-sender">{{ file.sender.username }}</strong></span>
+                    <span>Policy: <strong id="share-policy" class="badge-policy">{{ file.access_policy }}</strong></span>
+                </div>
+            </div>
+
+            <!-- Challenge Forms -->
+            <div class="challenge-body">
+                <!-- 1. Password Verification Form -->
+                {% if file.access_policy == 'PASSWORD' %}
+                <form id="form-decrypt-challenge" onsubmit="handleChallengeSubmit(event, 'PASSWORD')">
+                    <div class="form-group">
+                        <label for="challenge-password">Enter Decryption Password</label>
+                        <div class="input-wrapper password-wrapper">
+                            <span class="input-icon">🔑</span>
+                            <input type="password" id="challenge-password" placeholder="••••••••" required>
+                            <button type="button" class="password-toggle" onclick="togglePasswordVisibility('challenge-password', this)">👁️</button>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block" id="btn-decrypt-submit">
+                        <span class="btn-text">Decrypt & Download</span>
+                        <span class="spinner hidden"></span>
+                    </button>
+                </form>
+                {% endif %}
+
+                <!-- 2. Security Question Verification Form -->
+                {% if file.access_policy == 'QUESTION' %}
+                <form id="form-decrypt-challenge" onsubmit="handleChallengeSubmit(event, 'QUESTION')">
+                    <div class="question-box">
+                        <span class="q-label">Question Challenge:</span>
+                        <p class="q-text" id="challenge-question-text">{{ file.security_question }}</p>
+                    </div>
+                    <div class="form-group">
+                        <label for="challenge-answer">Enter Your Answer</label>
+                        <div class="input-wrapper">
+                            <span class="input-icon">💬</span>
+                            <input type="text" id="challenge-answer" placeholder="Your verification answer" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block" id="btn-decrypt-submit">
+                        <span class="btn-text">Decrypt & Download</span>
+                        <span class="spinner hidden"></span>
+                    </button>
+                </form>
+                {% endif %}
+
+                <!-- 3. OTP Verification Form -->
+                {% if file.access_policy == 'OTP' %}
+                <div class="otp-verification-container">
+                    <div class="recipient-box">
+                        <span>Authorized Recipient Emails:</span>
+                        <!-- Javascript will format this or we can render a placeholder obfuscated email address -->
+                        <strong id="otp-emails-display" data-emails="{{ file.recipient_email }}">Obfuscating...</strong>
+                    </div>
+
+                    <div class="form-group mt-20">
+                        <label for="challenge-otp-email">Enter Your Authorized Email Address</label>
+                        <div class="input-wrapper">
+                            <span class="input-icon">✉️</span>
+                            <input type="email" id="challenge-otp-email" placeholder="you@domain.com" required>
+                        </div>
+                    </div>
+
+                    <div class="otp-action-row mt-10">
+                        <button type="button" class="btn btn-secondary btn-block" id="btn-request-otp" onclick="requestOTP('{{ file.id }}')">
+                            Request Verification OTP
+                        </button>
+                    </div>
+
+                    <form id="form-decrypt-challenge" class="mt-20 hidden" onsubmit="handleChallengeSubmit(event, 'OTP')">
+                        <div class="form-group">
+                            <label for="challenge-otp">Enter 6-Digit Verification Code</label>
+                            <div class="input-wrapper center-text">
+                                <input type="text" id="challenge-otp" class="otp-input" maxlength="6" placeholder="000000" pattern="[0-9]{6}" required>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-accent btn-block" id="btn-decrypt-submit">
+                            <span class="btn-text">Verify & Download Stream</span>
+                            <span class="spinner hidden"></span>
+                        </button>
+                    </form>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Decryption Status Screen -->
+            <div id="decrypt-status-screen" class="status-screen hidden">
+                <div class="status-spinner-container">
+                    <div class="glowing-spinner"></div>
+                </div>
+                <h3>Verifying Credentials...</h3>
+                <p>Decrypting cipher stream in memory and transferring payload.</p>
+            </div>
+            {% endif %}
+        </main>
+
+        <footer class="auth-footer">
+            <p>Downloads are streamed in chunks and decrypted on-the-fly. Zero local data cache footprint.</p>
+        </footer>
+    </div>
+
+    <!-- Notification Toast Container -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Script must load BEFORE the inline script that depends on requestOTP -->
+    <script src="/static/js/app.js?v=1.2"></script>
+    <script>
+        // Simple client-side obfuscation of the email addresses for privacy
+        document.addEventListener("DOMContentLoaded", () => {
+            const emailsEl = document.getElementById("otp-emails-display");
+            if (emailsEl) {
+                const rawEmails = emailsEl.getAttribute("data-emails");
+                if (rawEmails) {
+                    const maskedList = rawEmails.split(",").map(email => {
+                        const trimmed = email.trim();
+                        if (trimmed.includes("@")) {
+                            const parts = trimmed.split("@");
+                            const name = parts[0];
+                            const domain = parts[1];
+                            const nameMask = name.length > 2 ? `${name.slice(0, 2)}***` : "***";
+                            return `${nameMask}@${domain}`;
+                        }
+                        return trimmed;
+                    }).join(", ");
+                    emailsEl.textContent = maskedList;
+                }
+            }
+
+            // Auto-fill email from URL ?email= param and trigger OTP request
+            const urlParams = new URLSearchParams(window.location.search);
+            const prefilledEmail = urlParams.get("email");
+            const emailInput = document.getElementById("challenge-otp-email");
+            const fileIdEl = document.getElementById("btn-request-otp");
+            const otpForm = document.getElementById("form-decrypt-challenge");
+
+            if (prefilledEmail && emailInput) {
+                emailInput.value = prefilledEmail;
+
+                // Immediately show the OTP code input form so the user can type
+                // the code as soon as they receive it, without waiting for the
+                // auto-request round-trip to succeed
+                if (otpForm) {
+                    otpForm.classList.remove("hidden");
+                }
+
+                // Extract file ID from the onclick attribute
+                const onclickAttr = fileIdEl ? fileIdEl.getAttribute("onclick") : "";
+                const match = onclickAttr ? onclickAttr.match(/requestOTP\('([^']+)'\)/) : null;
+                const fileId = match ? match[1] : null;
+
+                if (fileId) {
+                    // Small delay to let page settle, then auto-request OTP
+                    setTimeout(() => {
+                        if (typeof requestOTP === "function") {
+                            requestOTP(fileId);
+                        }
+                    }, 500);
+                }
+            }
+        });
+    </script>
+</body>
+</html>

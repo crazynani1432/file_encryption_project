@@ -1,0 +1,33 @@
+# Environment variables & secrets
+.env
+*.env
+!.env.example
+
+# SQLite Database & persistent data
+*.db
+*.sqlite
+*.sqlite3
+secure_vault.db
+
+# Uploaded encrypted files
+uploads/
+!uploads/.gitkeep
+
+# Python bytecode & cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+# IDE & Editor folders
+.vscode/
+.idea/
+*.swp
+*.swo

@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secure Vault | Login & Registration</title>
+    <!-- Modern Typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- CSS Stylesheet -->
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body class="auth-page">
+    <!-- Cyberpunk grid overlay for high-end aesthetics -->
+    <div class="cyber-grid"></div>
+    <div class="glow-sphere orange"></div>
+    <div class="glow-sphere purple"></div>
+
+    <div class="auth-container">
+        <!-- Logo and Heading -->
+        <header class="auth-header">
+            <div class="logo">
+                <span class="logo-icon">🔒</span>
+                <span class="logo-text">SECURE<span>VAULT</span></span>
+            </div>
+            <h1>Multi-Tier File Cryptography</h1>
+            <p>Hybrid encryption vault — combining asymmetric key exchange with symmetric ciphering, secured by OTP-authenticated recipient access.</p>
+        </header>
+
+        <!-- Glassmorphism Card -->
+        <main class="glass-card">
+            <!-- Tabs -->
+            <div class="tab-header">
+                <button id="tab-login" class="tab-btn active" onclick="switchTab('login')">Access Vault</button>
+                <button id="tab-register" class="tab-btn" onclick="switchTab('register')">Register Node</button>
+            </div>
+
+            <!-- Login Form -->
+            <form id="form-login" class="auth-form" onsubmit="handleLogin(event)">
+                <div class="form-group">
+                    <label for="login-username">Username or Email</label>
+                    <div class="input-wrapper">
+                        <span class="input-icon">👤</span>
+                        <input type="text" id="login-username" placeholder="Enter username or email" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="login-password">Password</label>
+                    <div class="input-wrapper password-wrapper">
+                        <span class="input-icon">🔑</span>
+                        <input type="password" id="login-password" placeholder="••••••••" required>
+                        <button type="button" class="password-toggle" onclick="togglePasswordVisibility('login-password', this)">👁️</button>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary" id="btn-login-submit">
+                    <span class="btn-text">Authenticate</span>
+                    <span class="spinner hidden"></span>
+                </button>
+            </form>
+
+            <!-- Register Form -->
+            <form id="form-register" class="auth-form hidden" onsubmit="handleRegister(event)">
+                <div class="form-group">
+                    <label for="reg-username">Username</label>
+                    <div class="input-wrapper">
+                        <span class="input-icon">👤</span>
+                        <input type="text" id="reg-username" placeholder="Choose a username" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="reg-email">Email Address</label>
+                    <div class="input-wrapper">
+                        <span class="input-icon">✉️</span>
+                        <input type="email" id="reg-email" placeholder="you@domain.com" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="reg-password">Password</label>
+                    <div class="input-wrapper password-wrapper">
+                        <span class="input-icon">🔑</span>
+                        <input type="password" id="reg-password" placeholder="••••••••" required>
+                        <button type="button" class="password-toggle" onclick="togglePasswordVisibility('reg-password', this)">👁️</button>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-accent" id="btn-reg-submit">
+                    <span class="btn-text">Register Account</span>
+                    <span class="spinner hidden"></span>
+                </button>
+            </form>
+        </main>
+
+        <footer class="auth-footer">
+            <p>Secured with hybrid encryption. Credentials protected using industry-standard hashing.</p>
+        </footer>
+    </div>
+
+    <!-- Notification Toast Container -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Script Injection -->
+    <script src="/static/js/app.js?v=1.1"></script>
+</body>
+</html>

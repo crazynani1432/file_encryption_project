@@ -1,0 +1,4 @@
+CONFIDENTIAL Vault Document.
+This file contains top-secret multi-tier encryption test vectors.
+Authorized decrypt verified.
+Mode: AES-256-GCM
