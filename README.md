@@ -26,8 +26,9 @@ Files are encrypted using a **chunked streaming architecture (64 KB buffers)**, 
 
 ## 👥 Authors & Contributors
 
-- **Pilli Sai Medhas** ([@pillisaimedhas-dev](https://github.com/pillisaimedhas-dev)) — *Lead Developer / Cryptography Architecture*
-- **Project Collaborators & Co-Founders** — *Engineering & Security Validation*
+- **Jammula Rithik Reddy** ([@crazynani1432](https://github.com/crazynani1432))
+- **Pilli Sai Medhas** ([@pillisaimedhas-dev](https://github.com/pillisaimedhas-dev))
+- **Achukatulu Kaif**
 
 ---
 
