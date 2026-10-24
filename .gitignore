@@ -10,7 +10,7 @@
 secure_vault.db
 
 # Uploaded encrypted files
-uploads/
+uploads/*
 !uploads/.gitkeep
 
 # Python bytecode & cache
