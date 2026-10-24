@@ -101,6 +101,10 @@ async def get_current_user(request: Request, db: Session = Depends(get_db)):
     return user
 
 
+@app.get("/health")
+async def health_check():
+    return {"status": "healthy", "service": "SecureVault", "timestamp": datetime.now(timezone.utc).isoformat()}
+
 # Page Rendering Routes
 
 @app.get("/", response_class=HTMLResponse)
