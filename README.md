@@ -28,7 +28,7 @@ Files are encrypted using a **chunked streaming architecture (64 KB buffers)**, 
 
 - **Jammula Rithik Reddy** ([@crazynani1432](https://github.com/crazynani1432))
 - **Pilli Sai Medhas** ([@pillisaimedhas-dev](https://github.com/pillisaimedhas-dev))
-- **Achukatulu Kaif**
+- **Achukatulu Kaif** ([@kaifachukatlu](https://github.com/kaifachukatlu))
 
 ---
 
