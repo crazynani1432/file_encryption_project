@@ -18,7 +18,7 @@ short_description: Multi-Tier Hybrid Cryptographic File Vault with OTP-Gated Rec
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![Cryptography](https://img.shields.io/badge/Cryptography-AES--256--GCM-FF6F00?style=for-the-badge&logo=letsencrypt&logoColor=white)](https://cryptography.io/)
-[![Database](https://img.shields.io/badge/Database-SQLite%20%2F%20SQLAlchemy-003B57?style=for-the-badge&logo=sqlite&logoColor=white)](https://www.sqlalchemy.org/)
+[![Live Demo](https://img.shields.io/badge/Live_Demo-Active_on_Render-46E3B7?style=for-the-badge&logo=render&logoColor=black)](https://file-encryption-project-hp52.onrender.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](LICENSE)
 
 <p align="center">
@@ -248,12 +248,12 @@ uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 
 ## 🌐 Application Portals & Endpoints
 
-| Portal | URL | Description |
-| :--- | :--- | :--- |
-| **Vault Home & Login** | [http://localhost:8000](http://localhost:8000) | User authentication & node access |
-| **Secure Dashboard** | [http://localhost:8000/dashboard](http://localhost:8000/dashboard) | File upload manager, policies & share links |
-| **Interactive Swagger Docs** | [http://localhost:8000/docs](http://localhost:8000/docs) | Live API testing & schema documentation |
-| **ReDoc API Documentation** | [http://localhost:8000/redoc](http://localhost:8000/redoc) | Clean, detailed API specification |
+| Portal | Local URL | 🌐 Live Cloud URL | Description |
+| :--- | :--- | :--- | :--- |
+| **Vault Home & Login** | [http://localhost:8000](http://localhost:8000) | [file-encryption-project...onrender.com](https://file-encryption-project-hp52.onrender.com/) | User authentication & node access |
+| **Secure Dashboard** | [http://localhost:8000/dashboard](http://localhost:8000/dashboard) | [/dashboard](https://file-encryption-project-hp52.onrender.com/dashboard) | File upload manager, policies & share links |
+| **Interactive Swagger Docs** | [http://localhost:8000/docs](http://localhost:8000/docs) | [/docs](https://file-encryption-project-hp52.onrender.com/docs) | Live API testing & schema documentation |
+| **Health Monitor** | [http://localhost:8000/health](http://localhost:8000/health) | [/health](https://file-encryption-project-hp52.onrender.com/health) | 24/7 Cloud health & uptime endpoint |
 
 ---
 
