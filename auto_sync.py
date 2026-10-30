@@ -53,50 +53,54 @@ def download_cloud_db():
     return False
 
 def start_auto_sync(interval: int = 5):
-    print("=" * 70)
-    print(" [SECUREVAULT] Real-Time Cloud Auto-Synchronizer")
-    print("=" * 70)
-    print(f"[*] Target Cloud : {REMOTE_URL}")
-    print(f"[*] Local File   : {LOCAL_DB_PATH.name}")
-    print(f"[*] Polling Rate : Every {interval} seconds")
-    print("[*] Status       : RUNNING IN BACKGROUND (Press Ctrl+C to stop)")
-    print("=" * 70 + "\n")
+    print("=" * 70, flush=True)
+    print(" [SECUREVAULT] Real-Time Cloud Auto-Synchronizer", flush=True)
+    print("=" * 70, flush=True)
+    print(f"[*] Target Cloud : {REMOTE_URL}", flush=True)
+    print(f"[*] Local File   : {LOCAL_DB_PATH.name}", flush=True)
+    print(f"[*] Polling Rate : Every {interval} seconds", flush=True)
+    print("[*] Status       : RUNNING IN BACKGROUND (Press Ctrl+C to stop)", flush=True)
+    print("=" * 70 + "\n", flush=True)
 
     last_count = -1
 
     # Initial check
     try:
         count, users = fetch_cloud_users_count()
-        download_cloud_db()
         last_count = count
         now = datetime.now().strftime("%H:%M:%S")
-        print(f"[{now}] Initialized. Currently {count} registered user(s) in cloud.")
+        print(f"[{now}] Initialized. Currently {count} registered user(s) in cloud.", flush=True)
         for u in users:
-            print(f"       -> User #{u.get('id')}: {u.get('username')} ({u.get('email')})")
+            print(f"       -> User #{u.get('id')}: {u.get('username')} ({u.get('email')})", flush=True)
+        if count > 0:
+            download_cloud_db()
     except Exception as e:
-        print(f"[!] Connecting to cloud service ({e})... Retrying...")
+        print(f"[!] Connecting to cloud service ({e})... Retrying...", flush=True)
 
-    print("\n[*] Listening for new cloud registrations...\n")
+    print("\n[*] Listening for new cloud registrations...\n", flush=True)
 
     while True:
         try:
             time.sleep(interval)
             count, users = fetch_cloud_users_count()
             
-            if count != last_count:
+            # Only trigger sync if count strictly increased or has valid cloud users
+            if count > last_count and count > 0:
                 now = datetime.now().strftime("%H:%M:%S")
-                if last_count != -1 and count > last_count:
-                    new_users = users[last_count:]
-                    names = ", ".join([u.get('username', '') for u in new_users])
-                    print(f"[{now}] 🔔 NEW REGISTRATION DETECTED! ({names})")
+                new_users = users[max(last_count, 0):]
+                names = ", ".join([u.get('username', '') for u in new_users])
+                print(f"[{now}] 🔔 NEW REGISTRATION DETECTED! ({names})", flush=True)
                 
                 download_cloud_db()
                 last_count = count
-                print(f"[{now}] ✅ Auto-synced {LOCAL_DB_PATH.name} (Total Users: {count})")
-                print(f"[{now}] 🔄 Refresh your SQLite Viewer in Antigravity to see updates!\n")
+                print(f"[{now}] ✅ Auto-synced {LOCAL_DB_PATH.name} (Total Users: {count})", flush=True)
+                print(f"[{now}] 🔄 Refresh your SQLite Viewer in Antigravity to see updates!\n", flush=True)
+            elif count < last_count:
+                # Cloud restarted/reset, track the new count without wiping local DB
+                last_count = count
 
         except KeyboardInterrupt:
-            print("\n[*] Auto-sync stopped by user.")
+            print("\n[*] Auto-sync stopped by user.", flush=True)
             break
         except Exception:
             # Silent retry on transient connection drops
@@ -111,3 +115,4 @@ if __name__ == "__main__":
         except Exception:
             poll_interval = 5
     start_auto_sync(interval=poll_interval)
+
