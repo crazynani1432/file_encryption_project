@@ -84,8 +84,10 @@ async function handleLogin(event) {
     const spinner = btn.querySelector(".spinner");
     const btnText = btn.querySelector(".btn-text");
 
-    const usernameOrEmail = document.getElementById("login-username").value;
+    const usernameOrEmail = document.getElementById("login-username").value.trim();
     const password = document.getElementById("login-password").value;
+    const rememberCheckbox = document.getElementById("login-remember");
+    const rememberMe = rememberCheckbox ? rememberCheckbox.checked : true;
 
     // Toggle loader UI
     spinner.classList.remove("hidden");
@@ -95,6 +97,7 @@ async function handleLogin(event) {
     const formData = new FormData();
     formData.append("username_or_email", usernameOrEmail);
     formData.append("password", password);
+    formData.append("remember_me", rememberMe);
 
     try {
         const response = await fetch("/api/auth/login", {
@@ -105,10 +108,24 @@ async function handleLogin(event) {
         const data = await response.json();
 
         if (response.ok) {
+            // Persist or clean up remembered credentials in local storage
+            if (rememberMe) {
+                localStorage.setItem("vault_saved_username", usernameOrEmail);
+                localStorage.setItem("vault_remember_preference", "true");
+                localStorage.setItem("vault_remembered_profile", JSON.stringify({
+                    username: data.username,
+                    email: data.email || ""
+                }));
+            } else {
+                localStorage.removeItem("vault_saved_username");
+                localStorage.setItem("vault_remember_preference", "false");
+                localStorage.removeItem("vault_remembered_profile");
+            }
+
             showToast("Authenticated", `Welcome back, ${data.username}! Connecting session...`, "success");
             setTimeout(() => {
                 window.location.href = "/dashboard";
-            }, 1000);
+            }, 800);
         } else {
             showToast("Access Denied", data.detail || "Invalid credentials", "error");
             spinner.classList.add("hidden");
@@ -121,6 +138,82 @@ async function handleLogin(event) {
         btnText.textContent = "Authenticate";
         btn.disabled = false;
     }
+}
+
+// Quick Unlock Handler for remembered user
+async function handleQuickLogin(event) {
+    event.preventDefault();
+    const btn = document.getElementById("btn-quick-submit");
+    const spinner = btn.querySelector(".spinner");
+    const btnText = btn.querySelector(".btn-text");
+
+    const rawProfile = localStorage.getItem("vault_remembered_profile");
+    if (!rawProfile) {
+        showStandardLoginForm();
+        return;
+    }
+    const profile = JSON.parse(rawProfile);
+    const password = document.getElementById("quick-password").value;
+
+    spinner.classList.remove("hidden");
+    btnText.textContent = "Unlocking...";
+    btn.disabled = true;
+
+    const formData = new FormData();
+    formData.append("username_or_email", profile.username);
+    formData.append("password", password);
+    formData.append("remember_me", true);
+
+    try {
+        const response = await fetch("/api/auth/login", {
+            method: "POST",
+            body: formData
+        });
+        const data = await response.json();
+        if (response.ok) {
+            showToast("Access Granted", `Welcome back, ${data.username}! Decrypting session...`, "success");
+            setTimeout(() => {
+                window.location.href = "/dashboard";
+            }, 800);
+        } else {
+            showToast("Access Denied", data.detail || "Incorrect password.", "error");
+            spinner.classList.add("hidden");
+            btnText.textContent = "Unlock Vault";
+            btn.disabled = false;
+            const pwdInput = document.getElementById("quick-password");
+            if (pwdInput) {
+                pwdInput.value = "";
+                pwdInput.focus();
+            }
+        }
+    } catch (err) {
+        showToast("Connection Error", "Could not reach authorization server.", "error");
+        spinner.classList.add("hidden");
+        btnText.textContent = "Unlock Vault";
+        btn.disabled = false;
+    }
+}
+
+// Switch from Welcome Back card to standard login/register form
+function showStandardLoginForm() {
+    const welcomeCard = document.getElementById("welcome-back-card");
+    const tabHeader = document.getElementById("auth-tab-header");
+    const formLogin = document.getElementById("form-login");
+    const formRegister = document.getElementById("form-register");
+    if (welcomeCard) welcomeCard.classList.add("hidden");
+    if (tabHeader) tabHeader.classList.remove("hidden");
+    if (formLogin) formLogin.classList.remove("hidden");
+    if (formRegister) formRegister.classList.add("hidden");
+}
+
+// Clear saved profile from device memory
+function forgetSavedAccount() {
+    localStorage.removeItem("vault_remembered_profile");
+    localStorage.removeItem("vault_saved_username");
+    const loginUser = document.getElementById("login-username");
+    if (loginUser) loginUser.value = "";
+    showStandardLoginForm();
+    showToast("Device Cleared", "Saved profile forgotten on this device.", "info");
 }
 
 // Register Handler
@@ -384,7 +477,7 @@ async function handleFileUpload(event) {
         const data = await response.json();
 
         if (response.ok) {
-            showToast("Encrypted Successful", `File "${data.filename}" encrypted with ${activePolicy} policy.`, "success");
+            showToast("Success", data.message || `File "${data.filename}" encrypted with ${activePolicy} policy.`, "success");
             event.target.reset();
             updateSelectedFileLabel();
             // Default to Password policy input
@@ -602,8 +695,47 @@ function escapeHTML(str) {
     );
 }
 
-// Drag & Drop event bindings
+// Initialization and DOM Ready handlers
 document.addEventListener("DOMContentLoaded", () => {
+    // 1. Check for remembered profile to display Welcome Back card
+    const rawProfile = localStorage.getItem("vault_remembered_profile");
+    const welcomeCard = document.getElementById("welcome-back-card");
+    const tabHeader = document.getElementById("auth-tab-header");
+    const formLogin = document.getElementById("form-login");
+
+    if (rawProfile && welcomeCard) {
+        try {
+            const profile = JSON.parse(rawProfile);
+            if (profile.username) {
+                document.getElementById("saved-user-name").textContent = profile.username;
+                document.getElementById("saved-user-email").textContent = profile.email || "Encrypted Vault Node";
+                document.getElementById("saved-user-avatar").textContent = profile.username.charAt(0).toUpperCase();
+                welcomeCard.classList.remove("hidden");
+                if (tabHeader) tabHeader.classList.add("hidden");
+                if (formLogin) formLogin.classList.add("hidden");
+                const quickPwd = document.getElementById("quick-password");
+                if (quickPwd) quickPwd.focus();
+            }
+        } catch (e) {
+            localStorage.removeItem("vault_remembered_profile");
+        }
+    } else {
+        // Fallback: Prefill saved username and remember preference if present
+        const loginUsernameInput = document.getElementById("login-username");
+        const rememberInput = document.getElementById("login-remember");
+        if (loginUsernameInput) {
+            const savedUser = localStorage.getItem("vault_saved_username");
+            const rememberPref = localStorage.getItem("vault_remember_preference");
+            if (savedUser) {
+                loginUsernameInput.value = savedUser;
+            }
+            if (rememberInput && rememberPref !== null) {
+                rememberInput.checked = (rememberPref === "true");
+            }
+        }
+    }
+
+    // 2. Drag & Drop event bindings
     const dragZone = document.getElementById("drag-zone");
     const fileInput = document.getElementById("upload-file");
     if (dragZone && fileInput) {

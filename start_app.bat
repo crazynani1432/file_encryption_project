@@ -1,4 +1,5 @@
 @echo off
+cd /d "%~dp0"
 title Secure Multi-Tier File Vault
 echo =========================================================
 echo    Secure Multi-Tier Hybrid Cryptographic File Vault

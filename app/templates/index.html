@@ -30,28 +30,70 @@
 
         <!-- Glassmorphism Card -->
         <main class="glass-card">
-            <!-- Tabs -->
-            <div class="tab-header">
+            <!-- Tabs (hidden when Welcome Back card is active) -->
+            <div class="tab-header" id="auth-tab-header">
                 <button id="tab-login" class="tab-btn active" onclick="switchTab('login')">Access Vault</button>
                 <button id="tab-register" class="tab-btn" onclick="switchTab('register')">Register Node</button>
             </div>
 
+            <!-- Welcome Back Quick-Unlock Card (Shown if profile remembered on this device) -->
+            <div id="welcome-back-card" class="welcome-back-card hidden">
+                <div class="saved-user-badge">
+                    <div class="avatar-circle" id="saved-user-avatar">S</div>
+                    <div class="saved-user-meta">
+                        <span class="welcome-label">WELCOME BACK</span>
+                        <h3 class="saved-username" id="saved-user-name">User</h3>
+                        <span class="saved-email" id="saved-user-email">user@domain.com</span>
+                    </div>
+                </div>
+
+                <form id="form-quick-login" class="quick-login-form" method="POST" action="/api/auth/login" onsubmit="handleQuickLogin(event)">
+                    <div class="form-group">
+                        <label for="quick-password">Unlock Password</label>
+                        <div class="input-wrapper password-wrapper">
+                            <span class="input-icon">🔑</span>
+                            <input type="password" id="quick-password" name="password" autocomplete="current-password" placeholder="••••••••" required>
+                            <button type="button" class="password-toggle" onclick="togglePasswordVisibility('quick-password', this)">👁️</button>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block" id="btn-quick-submit">
+                        <span class="btn-text">Unlock Vault</span>
+                        <span class="spinner hidden"></span>
+                    </button>
+                    <div class="quick-card-actions">
+                        <button type="button" class="text-link-btn" onclick="showStandardLoginForm()">
+                            <span>🔄 Switch account</span>
+                        </button>
+                        <button type="button" class="text-link-btn danger-link" onclick="forgetSavedAccount()">
+                            <span>Forget device</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+
             <!-- Login Form -->
-            <form id="form-login" class="auth-form" onsubmit="handleLogin(event)">
+            <form id="form-login" class="auth-form" method="POST" action="/api/auth/login" onsubmit="handleLogin(event)">
                 <div class="form-group">
                     <label for="login-username">Username or Email</label>
                     <div class="input-wrapper">
                         <span class="input-icon">👤</span>
-                        <input type="text" id="login-username" placeholder="Enter username or email" required>
+                        <input type="text" id="login-username" name="username" autocomplete="username" placeholder="Enter username or email" required>
                     </div>
                 </div>
                 <div class="form-group">
                     <label for="login-password">Password</label>
                     <div class="input-wrapper password-wrapper">
                         <span class="input-icon">🔑</span>
-                        <input type="password" id="login-password" placeholder="••••••••" required>
+                        <input type="password" id="login-password" name="password" autocomplete="current-password" placeholder="••••••••" required>
                         <button type="button" class="password-toggle" onclick="togglePasswordVisibility('login-password', this)">👁️</button>
                     </div>
+                </div>
+                <div class="form-options">
+                    <label class="remember-checkbox-label" for="login-remember">
+                        <input type="checkbox" id="login-remember" name="remember_me" checked>
+                        <span class="custom-checkbox-indicator"></span>
+                        <span class="remember-text">Remember login details</span>
+                    </label>
                 </div>
                 <button type="submit" class="btn btn-primary" id="btn-login-submit">
                     <span class="btn-text">Authenticate</span>
@@ -60,19 +102,19 @@
             </form>
 
             <!-- Register Form -->
-            <form id="form-register" class="auth-form hidden" onsubmit="handleRegister(event)">
+            <form id="form-register" class="auth-form hidden" method="POST" action="/api/auth/register" onsubmit="handleRegister(event)">
                 <div class="form-group">
                     <label for="reg-username">Username</label>
                     <div class="input-wrapper">
                         <span class="input-icon">👤</span>
-                        <input type="text" id="reg-username" placeholder="Choose a username" required>
+                        <input type="text" id="reg-username" name="username" autocomplete="username" placeholder="Choose a username" required>
                     </div>
                 </div>
                 <div class="form-group">
                     <label for="reg-email">Email Address</label>
                     <div class="input-wrapper">
                         <span class="input-icon">✉️</span>
-                        <input type="email" id="reg-email" placeholder="you@domain.com" required>
+                        <input type="email" id="reg-email" name="email" autocomplete="email" placeholder="you@domain.com" required>
                     </div>
                 </div>
 
@@ -80,7 +122,7 @@
                     <label for="reg-password">Password</label>
                     <div class="input-wrapper password-wrapper">
                         <span class="input-icon">🔑</span>
-                        <input type="password" id="reg-password" placeholder="••••••••" required>
+                        <input type="password" id="reg-password" name="password" autocomplete="new-password" placeholder="••••••••" required>
                         <button type="button" class="password-toggle" onclick="togglePasswordVisibility('reg-password', this)">👁️</button>
                     </div>
                 </div>

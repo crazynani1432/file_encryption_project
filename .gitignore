@@ -5,6 +5,7 @@
 
 # SQLite Database & persistent data
 *.db
+*.bak
 *.sqlite
 *.sqlite3
 secure_vault.db

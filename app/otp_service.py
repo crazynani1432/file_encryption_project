@@ -11,14 +11,20 @@ from email.header import Header
 from typing import Optional
 from dotenv import load_dotenv
 
-load_dotenv()
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.abspath(os.path.join(BASE_DIR, ".."))
+_env_path = os.path.join(PROJECT_ROOT, ".env")
+if os.path.exists(_env_path):
+    load_dotenv(_env_path)
+else:
+    load_dotenv()
 
 
 class OTPProvider:
     def send_otp(self, recipient: str, otp_code: str, filename: Optional[str] = None) -> bool:
         raise NotImplementedError
 
-    def send_share_link(self, recipient: str, filename: str, sender_name: str, share_url: str) -> bool:
+    def send_share_link(self, recipient: str, filename: str, sender_name: str, share_url: str, reply_to: Optional[str] = None) -> bool:
         raise NotImplementedError
 
 
@@ -33,7 +39,7 @@ class ConsoleOTPProvider(OTPProvider):
         print("=" * 60 + "\n")
         return True
 
-    def send_share_link(self, recipient: str, filename: str, sender_name: str, share_url: str) -> bool:
+    def send_share_link(self, recipient: str, filename: str, sender_name: str, share_url: str, reply_to: Optional[str] = None) -> bool:
         print("\n" + "=" * 60)
         print(f" [SECURE VAULT] MOCK FILE SHARE LINK DISPATCH")
         print(f" Recipient: {recipient}")
@@ -82,7 +88,7 @@ class TwilioOTPProvider(OTPProvider):
             print(f"[OTP Service ERROR] Twilio request failed: {e}")
             return False
 
-    def send_share_link(self, recipient: str, filename: str, sender_name: str, share_url: str) -> bool:
+    def send_share_link(self, recipient: str, filename: str, sender_name: str, share_url: str, reply_to: Optional[str] = None) -> bool:
         if not self.account_sid or not self.auth_token or not self.from_phone:
             return ConsoleOTPProvider().send_share_link(recipient, filename, sender_name, share_url)
         url = f"https://api.twilio.com/2010-04-01/Accounts/{self.account_sid}/Messages.json"
@@ -148,26 +154,37 @@ class Fast2SMSOTPProvider(OTPProvider):
             print(f"[OTP Service ERROR] Fast2SMS request failed: {e}")
             return False
 
-    def send_share_link(self, recipient: str, filename: str, sender_name: str, share_url: str) -> bool:
-        return ConsoleOTPProvider().send_share_link(recipient, filename, sender_name, share_url)
+    def send_share_link(self, recipient: str, filename: str, sender_name: str, share_url: str, reply_to: Optional[str] = None) -> bool:
+        return ConsoleOTPProvider().send_share_link(recipient, filename, sender_name, share_url, reply_to=reply_to)
 
 
 class EmailOTPProvider(OTPProvider):
     def __init__(self):
-        self.smtp_server = os.getenv("SMTP_SERVER", "smtp.gmail.com")
-        self.smtp_port = int(os.getenv("SMTP_PORT", "587"))
-        self.sender_email = os.getenv("SENDER_EMAIL")
-        self.sender_password = os.getenv("SENDER_PASSWORD")
+        self.smtp_server = os.getenv("SMTP_SERVER", "smtp.gmail.com").strip()
+        self.smtp_port = int(os.getenv("SMTP_PORT", "587").strip())
+        self.sender_email = (os.getenv("SENDER_EMAIL") or "").strip()
+        # Clean any whitespace or spaces commonly present in 16-character Google App Passwords
+        raw_password = os.getenv("SENDER_PASSWORD") or ""
+        self.sender_password = raw_password.replace(" ", "").strip()
 
-    def _send_smtp_email(self, recipient: str, subject: str, text_content: str, html_content: str) -> bool:
+    def _send_smtp_email(
+        self,
+        recipient: str,
+        subject: str,
+        text_content: str,
+        html_content: str,
+        reply_to: Optional[str] = None
+    ) -> bool:
         if not self.sender_email or not self.sender_password:
-            print("[Email Service ERROR] SMTP credentials missing. Falling back to Console logging.")
+            print("[Email Service ERROR] SMTP credentials missing in .env (SENDER_EMAIL or SENDER_PASSWORD). Falling back to Console logging.")
             return False
 
         msg = MIMEMultipart("alternative")
         msg["Subject"] = Header(subject, "utf-8")
         msg["From"] = f"Secure Vault <{self.sender_email}>"
         msg["To"] = recipient
+        if reply_to:
+            msg["Reply-To"] = reply_to
 
         part1 = MIMEText(text_content, "plain", "utf-8")
         part2 = MIMEText(html_content, "html", "utf-8")
@@ -175,15 +192,24 @@ class EmailOTPProvider(OTPProvider):
         msg.attach(part1)
         msg.attach(part2)
 
+        server = None
         try:
-            server = smtplib.SMTP(self.smtp_server, self.smtp_port, timeout=12)
-            server.starttls()
+            if self.smtp_port == 465:
+                server = smtplib.SMTP_SSL(self.smtp_server, self.smtp_port, timeout=25)
+            else:
+                server = smtplib.SMTP(self.smtp_server, self.smtp_port, timeout=25)
+                server.starttls()
             server.login(self.sender_email, self.sender_password)
             server.send_message(msg)
-            server.quit()
         except Exception as e:
             print(f"[Email Service ERROR] Email dispatch failed to {recipient}: {e}")
             return False
+        finally:
+            if server:
+                try:
+                    server.quit()
+                except Exception:
+                    pass
 
         try:
             print(f"[Email Service] Email successfully sent to {recipient}")
@@ -191,7 +217,7 @@ class EmailOTPProvider(OTPProvider):
             pass
         return True
 
-    def send_share_link(self, recipient: str, filename: str, sender_name: str, share_url: str) -> bool:
+    def send_share_link(self, recipient: str, filename: str, sender_name: str, share_url: str, reply_to: Optional[str] = None) -> bool:
         """
         Send access link to the recipient when an encrypted file is uploaded.
         """
@@ -259,9 +285,9 @@ class EmailOTPProvider(OTPProvider):
 </body>
 </html>"""
 
-        success = self._send_smtp_email(recipient, subject, text_content, html_content)
+        success = self._send_smtp_email(recipient, subject, text_content, html_content, reply_to=reply_to)
         if not success:
-            ConsoleOTPProvider().send_share_link(recipient, filename, sender_name, share_url)
+            ConsoleOTPProvider().send_share_link(recipient, filename, sender_name, share_url, reply_to=reply_to)
             return False
         return True
 
@@ -349,8 +375,10 @@ def get_otp_provider(recipient: Optional[str] = None) -> OTPProvider:
         return ConsoleOTPProvider()
 
 
-def send_file_share_link(recipient: str, filename: str, sender_name: str, share_url: str) -> bool:
+def send_file_share_link(recipient: str, filename: str, sender_name: str, share_url: str, reply_to: Optional[str] = None) -> bool:
     provider = get_otp_provider(recipient)
+    if isinstance(provider, EmailOTPProvider):
+        return provider.send_share_link(recipient, filename, sender_name, share_url, reply_to=reply_to)
     return provider.send_share_link(recipient, filename, sender_name, share_url)
 
 

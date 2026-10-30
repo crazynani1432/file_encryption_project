@@ -10,10 +10,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 # Set working directory
 WORKDIR /app
 
-# Install system dependencies (build-essential, curl for healthchecks)
+# Install system dependencies (build-essential, curl for healthchecks, libpq-dev for PostgreSQL)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     build-essential \
+    libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy dependencies list and install

@@ -2,14 +2,25 @@ import os
 import uuid
 import jwt
 import bcrypt
+import asyncio
 from datetime import datetime, timedelta, timezone
 from typing import Optional
+from dotenv import load_dotenv
 
 from fastapi import FastAPI, Depends, HTTPException, status, Form, UploadFile, File, Response, Request, Cookie
 from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
+
+# Base directories & Explicit .env Loading
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.abspath(os.path.join(BASE_DIR, ".."))
+_env_path = os.path.join(PROJECT_ROOT, ".env")
+if os.path.exists(_env_path):
+    load_dotenv(_env_path)
+else:
+    load_dotenv()
 
 try:
     from app import models
@@ -22,12 +33,18 @@ except (ImportError, ValueError):
     import otp_service
     from database import engine, get_db
 
-# Initialize Database tables
+# Initialize Database tables & ensure backwards-compatible columns
 models.Base.metadata.create_all(bind=engine)
-
-# Base directories
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-PROJECT_ROOT = os.path.abspath(os.path.join(BASE_DIR, ".."))
+try:
+    with engine.connect() as _conn:
+        from sqlalchemy import inspect, text
+        _inspector = inspect(engine)
+        _cols = [c["name"] for c in _inspector.get_columns("users")]
+        if "last_login_at" not in _cols:
+            _conn.execute(text("ALTER TABLE users ADD COLUMN last_login_at TIMESTAMP"))
+            _conn.commit()
+except Exception:
+    pass
 
 # Load configuration
 JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "fallback_secret_key_change_me_in_production")
@@ -180,6 +197,7 @@ async def register(
 async def login(
     username_or_email: str = Form(...),
     password: str = Form(...),
+    remember_me: Optional[bool] = Form(False),
     db: Session = Depends(get_db)
 ):
     # Lookup by username or email
@@ -194,17 +212,36 @@ async def login(
     if not bcrypt.checkpw(password.encode("utf-8"), user.password_hash.encode("utf-8")):
         raise HTTPException(status_code=400, detail="Invalid username or password")
 
+    # Record last_login_at timestamp
+    try:
+        user.last_login_at = datetime.now(timezone.utc)
+        db.commit()
+    except Exception:
+        db.rollback()
+
+    # Extend session duration to 30 days if remember_me is enabled, else standard ACCESS_TOKEN_EXPIRE_MINUTES
+    if remember_me:
+        token_delta = timedelta(days=30)
+        cookie_max_age = 30 * 24 * 3600  # 30 days
+    else:
+        token_delta = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        cookie_max_age = ACCESS_TOKEN_EXPIRE_MINUTES * 60
+
     # Generate session token
-    access_token = create_access_token(data={"user_id": user.id})
+    access_token = create_access_token(data={"user_id": user.id}, expires_delta=token_delta)
     
-    response = JSONResponse(content={"message": "Login successful", "username": user.username})
+    response = JSONResponse(content={
+        "message": "Login successful",
+        "username": user.username,
+        "email": user.email
+    })
     response.set_cookie(
         key="session_token",
         value=access_token,
         httponly=True,
         samesite="lax",
         secure=False,  # Set to True in production with HTTPS
-        max_age=3600
+        max_age=cookie_max_age
     )
     return response
 
@@ -230,6 +267,7 @@ async def get_me(current_user: models.User = Depends(get_current_user)):
 
 @app.post("/api/files/upload")
 async def upload_file(
+    request: Request,
     file: UploadFile = File(...),
     access_policy: str = Form(...),
     password: Optional[str] = Form(None),
@@ -307,8 +345,38 @@ async def upload_file(
     db.refresh(encrypted_file)
 
     share_url = f"/share/{file_uuid}"
+
+    email_notice = ""
+    # Automatically dispatch share link via Gmail if access policy is OTP and recipient emails are present
+    if access_policy == "OTP" and recipient_email:
+        base_url = str(request.base_url).rstrip("/")
+        full_share_url = f"{base_url}/share/{file_uuid}"
+        recipients = [e.strip() for e in recipient_email.split(",") if e.strip()]
+        dispatched_recipients = []
+        for rec in recipients:
+            import urllib.parse
+            rec_share_url = f"{full_share_url}?email={urllib.parse.quote(rec)}"
+            try:
+                sent = await asyncio.to_thread(
+                    otp_service.send_file_share_link,
+                    recipient=rec,
+                    filename=file.filename,
+                    sender_name=current_user.username,
+                    share_url=rec_share_url,
+                    reply_to=current_user.email
+                )
+                if sent:
+                    dispatched_recipients.append(rec)
+            except Exception as e:
+                print(f"[Upload Auto-Dispatch Error] Could not dispatch email to {rec}: {e}")
+
+        if dispatched_recipients:
+            email_notice = f" Share link dispatched via Gmail to: {', '.join(dispatched_recipients)}."
+        else:
+            email_notice = " Note: Gmail dispatch pending. You can click 'Send via Gmail' on your dashboard to retry."
+
     return {
-        "message": "File encrypted and stored successfully",
+        "message": f"File encrypted successfully!{email_notice}",
         "file_uuid": file_uuid,
         "filename": file.filename,
         "share_url": share_url
@@ -402,11 +470,13 @@ async def send_file_link_via_gmail(
     for recipient in recipients:
         import urllib.parse
         recipient_share_url = f"{share_url}?email={urllib.parse.quote(recipient)}"
-        success = otp_service.send_file_share_link(
+        success = await asyncio.to_thread(
+            otp_service.send_file_share_link,
             recipient=recipient,
             filename=file_record.filename,
             sender_name=current_user.username,
-            share_url=recipient_share_url
+            share_url=recipient_share_url,
+            reply_to=current_user.email
         )
         if not success:
             failed.append(recipient)
@@ -486,14 +556,14 @@ async def request_otp_for_file(
     db.add(new_otp)
     db.commit()
 
-    # Dispatch SMS or Email
+    # Dispatch SMS or Email in a separate worker thread so event loop is not blocked
     provider = otp_service.get_otp_provider(target_email)
-    success = provider.send_otp(target_email, otp_code)
+    success = await asyncio.to_thread(provider.send_otp, target_email, otp_code, file_record.filename)
     
     if not success:
-        raise HTTPException(status_code=500, detail="Failed to dispatch verification OTP. Contact system administrator.")
+        raise HTTPException(status_code=500, detail="Failed to dispatch verification OTP via email. Check Gmail SMTP settings or try again.")
 
-    return {"message": "Verification code dispatched successfully"}
+    return {"message": "Verification code dispatched successfully via email"}
 
 
 @app.post("/api/files/share/{file_id}/verify-challenge")
