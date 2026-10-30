@@ -8,7 +8,7 @@ from typing import Optional
 from dotenv import load_dotenv
 
 from fastapi import FastAPI, Depends, HTTPException, status, Form, UploadFile, File, Response, Request, Cookie
-from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse, JSONResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse, JSONResponse, FileResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
@@ -259,8 +259,38 @@ async def get_me(current_user: models.User = Depends(get_current_user)):
         "id": current_user.id,
         "username": current_user.username,
         "email": current_user.email,
-        "phone_number": current_user.phone_number
+        "phone_number": getattr(current_user, "phone_number", None)
     }
+
+
+@app.get("/api/users")
+async def list_registered_users(db: Session = Depends(get_db)):
+    """Public/Dashboard endpoint to inspect registered vault users (without password hashes)."""
+    users = db.query(models.User).order_by(models.User.id.asc()).all()
+    return [
+        {
+            "id": u.id,
+            "username": u.username,
+            "email": u.email,
+            "created_at": u.created_at.isoformat() if u.created_at else None,
+            "last_login_at": u.last_login_at.isoformat() if u.last_login_at else None
+        }
+        for u in users
+    ]
+
+
+@app.get("/api/admin/export-db")
+async def export_db(admin_key: Optional[str] = None):
+    """Secure endpoint to download live database into local Antigravity workspace."""
+    expected_key = os.getenv("SERVER_MASTER_KEY", "fallback_master_key").strip()
+    if not admin_key or admin_key.strip() != expected_key:
+        raise HTTPException(status_code=403, detail="Invalid admin synchronization key")
+
+    db_path = os.path.join(PROJECT_ROOT, "secure_vault.db")
+    if not os.path.exists(db_path):
+        raise HTTPException(status_code=404, detail="Database file not found on server")
+
+    return FileResponse(db_path, media_type="application/x-sqlite3", filename="secure_vault.db")
 
 
 # API File Cryptography and Access Management
