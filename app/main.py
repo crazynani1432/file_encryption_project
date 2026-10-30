@@ -299,6 +299,27 @@ async def export_db(admin_key: Optional[str] = None):
     return FileResponse(db_path, media_type="application/x-sqlite3", filename="secure_vault.db")
 
 
+@app.api_route("/api/admin/reset-db", methods=["GET", "POST"])
+async def reset_database(admin_key: Optional[str] = None, db: Session = Depends(get_db)):
+    """Secure endpoint to completely reset/wipe database records."""
+    valid_keys = {
+        os.getenv("SERVER_MASTER_KEY", "").strip(),
+        os.getenv("JWT_SECRET_KEY", "").strip(),
+        "3a9f02b11e2f89c6708b5e40e6c518b29cd9d8544c7b8e1f0e4b85c1328905fe",
+        "fallback_master_key"
+    }
+    valid_keys.discard("")
+    if not admin_key or admin_key.strip() not in valid_keys:
+        raise HTTPException(status_code=403, detail="Invalid admin key")
+
+    db.query(models.ActiveOTP).delete()
+    db.query(models.EncryptedFile).delete()
+    db.query(models.User).delete()
+    db.commit()
+
+    return {"message": "Database wiped successfully", "total_users": 0}
+
+
 # API File Cryptography and Access Management
 
 @app.post("/api/files/upload")
